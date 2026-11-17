@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Strata – Distributed Key-Value Storage Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#e8edf2;--panel:#f7f9fb;--ink:#12203a;--mut:#5b6b83;--line:#cdd6e1;--teal:#0f766e;--amber:#a15c07;--red:#b42318;--blue:#2457c5;--chip:#e3eaf2;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1626;--panel:#16213a;--ink:#e6edf8;--mut:#93a3bd;--line:#2a3a5a;--teal:#4fd1c0;--amber:#f0b457;--red:#ff8a7a;--blue:#8fb4ff;--chip:#1f2e4d;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0e1626;--panel:#16213a;--ink:#e6edf8;--mut:#93a3bd;--line:#2a3a5a;--teal:#4fd1c0;--amber:#f0b457;--red:#ff8a7a;--blue:#8fb4ff;--chip:#1f2e4d;color-scheme:dark}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Bricolage Grotesque",system-ui,sans-serif}
+.mono,input,button,.chip,.log{font-family:"IBM Plex Mono",ui-monospace,monospace}
+header{padding:28px clamp(16px,4vw,48px) 8px;display:flex;flex-wrap:wrap;gap:16px;align-items:end;justify-content:space-between}
+h1{font-size:clamp(30px,5vw,54px);line-height:1;margin:0;font-weight:800;letter-spacing:-.03em}
+header p{margin:8px 0 0;color:var(--mut);max-width:60ch}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel)}
+.seg button{border:0;background:none;color:var(--ink);padding:9px 16px;cursor:pointer;font-size:13px}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+main{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr) minmax(0,340px);gap:16px;padding:16px clamp(16px,4vw,48px) 32px}
+@media(max-width:1100px){main{grid-template-columns:1fr}}
+section{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+h2{font-size:17px;margin:0 0 12px;font-weight:700}h3{font-size:14px;margin:0 0 6px}
+small,.mut{color:var(--mut);font-size:12.5px}
+input{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font-size:13px;margin-bottom:8px}
+input:focus-visible,button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+button.b{border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:8px 12px;border-radius:8px;cursor:pointer;font-size:12.5px}
+button.b:hover{border-color:var(--ink)}button.p{background:var(--teal);border-color:var(--teal);color:#fff}
+button.d{color:var(--red)}
+.lane{border-left:4px solid var(--line);padding:4px 0 4px 12px;margin-bottom:14px}
+.lane.wal{border-color:var(--amber)}.lane.mem{border-color:var(--teal)}.lane.sst{border-color:var(--blue)}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{background:var(--chip);border-radius:6px;padding:2px 7px;font-size:11.5px}
+.chip.del{color:var(--red);text-decoration:line-through}.chip.old{opacity:.4}.chip.bad{outline:1px solid var(--red);color:var(--red)}
+.tbl{border:1px solid var(--line);border-radius:8px;padding:6px 10px;background:var(--bg);font-size:12px;min-width:120px}
+.bar{height:6px;background:var(--chip);border-radius:4px;overflow:hidden;margin:4px 0 8px}.bar i{display:block;height:100%;background:var(--teal);transition:width .3s}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.stat{background:var(--bg);border-radius:10px;padding:8px 10px}.stat b{display:block;font-size:20px}
+.nodes{display:grid;gap:6px;margin-top:8px}
+.node{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:8px;cursor:pointer;background:var(--bg);color:var(--ink);font-size:13px;text-align:left;width:100%}
+.node[aria-current=true]{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink)}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--teal);display:inline-block;margin-right:8px}.down .dot{background:var(--red)}
+.log{max-height:230px;overflow:auto;font-size:11.5px;display:grid;gap:3px}.log div{padding:3px 6px;border-radius:5px;background:var(--bg)}
+.log .ok{color:var(--teal)}.log .er{color:var(--red)}.log .wr{color:var(--amber)}
+svg text{fill:var(--ink);font:11px "IBM Plex Mono",monospace}
+footer{padding:0 clamp(16px,4vw,48px) 28px;color:var(--mut);font-size:13px}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+ <div>
+  <h1>Strata Built by Adeeb Ali | Software Developer</h1>
+  <p>A distributed key-value storage engine you can crash, corrupt and recover. Every write is logged first, then stored in a Bitcask or LSM tree on five replicated nodes.</p>
+ </div>
+ <div class="seg" role="group" aria-label="Storage engine">
+  <button id="mLSM" aria-pressed="true">LSM tree</button>
+  <button id="mBC" aria-pressed="false">Bitcask</button>
+ </div>
+</header>
+<main>
+ <section aria-label="Operations">
+  <h2>Operations</h2>
+  <input id="k" placeholder="key (e.g. user:42)" value="user:42" autocomplete="off">
+  <input id="v" placeholder="value" value="Ada Lovelace" autocomplete="off">
+  <div class="row"><button class="b p" id="put">PUT</button><button class="b" id="get">GET</button><button class="b d" id="del">DELETE</button></div>
+  <div id="res" class="mono mut" style="min-height:40px;font-size:12.5px" aria-live="polite">Result appears here.</div>
+  <h3>Selected node</h3>
+  <div class="row">
+   <button class="b" id="flush"></button><button class="b" id="comp">Compact</button>
+   <button class="b" id="tear">Corrupt last log record</button>
+   <button class="b d" id="crash">Crash node</button><button class="b p" id="rec">Recover node</button>
+  </div>
+  <h3>Cluster</h3>
+  <div class="row"><button class="b" id="bench">Run benchmark</button><button class="b" id="reset">Reset cluster</button></div>
+  <small>Replication factor 3, write quorum 2, read quorum 2. Reads repair stale replicas.</small>
+ </section>
+
+ <section aria-label="Storage stack">
+  <h2 id="stackTitle">Storage stack</h2>
+  <div class="stats" id="stats"></div>
+  <div id="stack"></div>
+ </section>
+
+ <section aria-label="Cluster">
+  <h2>Consistent hash ring</h2>
+  <svg id="ring" viewBox="0 0 220 220" width="100%" role="img" aria-label="Hash ring with five nodes"></svg>
+  <div class="nodes" id="nodes"></div>
+  <h2 style="margin-top:16px">Event log</h2>
+  <div class="log" id="log" aria-live="polite"></div>
+ </section>
+</main>
+<footer>Built by M. Adeeb Ali | Software Developer. The engine runs entirely in your browser; a Rust or Go port keeps the same record format: operation, key, value, timestamp and CRC32 checksum.</footer>
+
+<script>
+"use strict";
+const crc=s=>{let c=~0;for(let i=0;i<s.length;i++){c^=s.charCodeAt(i);for(let j=0;j<8;j++)c=c>>>1^(c&1?0xEDB88320:0)}return(~c)>>>0};
+const mkRec=(op,k,v,ts)=>({op,k,v,ts,crc:crc(op+k+(v??"")+ts)});
+const ok=r=>r.crc===crc(r.op+r.k+(r.v??"")+r.ts);
+const find=(e,k)=>{let lo=0,hi=e.length-1;while(lo<=hi){const m=(lo+hi)>>1;if(e[m][0]===k)return e[m];e[m][0]<k?lo=m+1:hi=m-1}return null};
+
+/* ---------- LSM tree: WAL -> memtable -> L0 SSTables -> L1 ---------- */
+class LSM{
+ constructor(){this.wal=[];this.mem=new Map();this.l0=[];this.l1=null;this.id=0;this.cap=8;this.st={flush:0,comp:0,skip:0}}
+ table(e){const b=new Set();e.forEach(([k])=>{b.add(crc(k)%512);b.add(crc(k+"#")%512)});return{id:++this.id,e,b}}
+ w(op,k,v,ts){this.wal.push(mkRec(op,k,v,ts));this.mem.set(k,{v,ts});if(this.mem.size>=this.cap)this.flush()}
+ put(k,v,ts){this.w("PUT",k,v,ts)}del(k,ts){this.w("DEL",k,null,ts)}
+ flush(){if(!this.mem.size)return;const e=[...this.mem].sort((a,b)=>a[0]<b[0]?-1:1).map(([k,x])=>[k,x.v,x.ts]);
+  this.l0.unshift(this.table(e));this.mem.clear();this.wal=[];this.st.flush++;if(this.l0.length>=3)this.compact()}
+ compact(){if(!this.l0.length)return 0;const m=new Map();(this.l1?.e||[]).forEach(r=>m.set(r[0],r));
+  [...this.l0].reverse().forEach(t=>t.e.forEach(r=>{const o=m.get(r[0]);if(!o||o[2]<=r[2])m.set(r[0],r)}));
+  const n=this.l0.length;this.l1=this.table([...m.values()].sort((a,b)=>a[0]<b[0]?-1:1));this.l0=[];this.st.comp++;return n}
+ get(k){const x=this.mem.get(k);if(x)return x;
+  for(const t of [...this.l0,...(this.l1?[this.l1]:[])]){
+   if(!t.b.has(crc(k)%512)||!t.b.has(crc(k+"#")%512)){this.st.skip++;continue}
+   const r=find(t.e,k);if(r)return{v:r[1],ts:r[2]}}return null}
+ tear(){const r=this.wal[this.wal.length-1];if(!r)return false;r.crc^=1;return true}
+ crash(){this.mem.clear()}
+ recover(){let n=0,drop=0;this.mem.clear();for(let i=0;i<this.wal.length;i++){const r=this.wal[i];
+   if(!ok(r)){drop=this.wal.length-i;this.wal.length=i;break}this.mem.set(r.k,{v:r.v,ts:r.ts});n++}
+  return`replayed ${n} log records, dropped ${drop} corrupt`}
+ stats(){return[["Memtable",`${this.mem.size}/${this.cap}`],["Log records",this.wal.length],["SSTables",this.l0.length+(this.l1?1:0)],["Bloom skips",this.st.skip]]}
+ view(){const c=r=>`<span class="chip ${r.v===null?"del":""} ${r.bad?"bad":""}">${esc(r.k)}</span>`;
+  const walH=this.wal.map(r=>`<span class="chip ${ok(r)?"":"bad"}" title="crc ${r.crc.toString(16)}">${r.op} ${esc(r.k)}</span>`).join("")||'<small>empty, truncated after flush</small>';
+  const memH=[...this.mem].sort().map(([k,x])=>c({k,v:x.v})).join("")||'<small>empty</small>';
+  const tb=(t,n)=>`<div class="tbl"><b>${n}</b> #${t.id}<br>${t.e.length} keys<br><small>${esc(t.e[0][0])} to ${esc(t.e[t.e.length-1][0])}</small></div>`;
+  return`<div class="lane wal"><h3>Write-ahead log</h3><div class="chips">${walH}</div></div>
+  <div class="lane mem"><h3>Memtable (sorted on flush)</h3><div class="bar"><i style="width:${this.mem.size/this.cap*100}%"></i></div><div class="chips">${memH}</div></div>
+  <div class="lane sst"><h3>Level 0 (overlapping tables, newest first)</h3><div class="chips">${this.l0.map(t=>tb(t,"L0")).join("")||"<small>none</small>"}</div></div>
+  <div class="lane sst"><h3>Level 1 (one merged sorted run)</h3><div class="chips">${this.l1?tb(this.l1,"L1"):"<small>none</small>"}</div></div>`}
+}
+
+/* ---------- Bitcask: append-only segments + in-memory keydir ---------- */
+class Bitcask{
+ constructor(){this.segs=[[]];this.dir=new Map();this.cap=10;this.st={merge:0}}
+ w(op,k,v,ts){let s=this.segs[this.segs.length-1];s.push(mkRec(op,k,v,ts));this.dir.set(k,{s:this.segs.length-1,o:s.length-1});if(s.length>=this.cap)this.segs.push([])}
+ put(k,v,ts){this.w("PUT",k,v,ts)}del(k,ts){this.w("DEL",k,null,ts)}
+ get(k){const p=this.dir.get(k);if(!p)return null;const r=this.segs[p.s][p.o];return{v:r.v,ts:r.ts}}
+ flush(){}
+ compact(){const live=[...this.dir].map(([k,p])=>this.segs[p.s][p.o]).sort((a,b)=>a.ts-b.ts);const n=this.segs.length-1;
+  this.segs=[[]];this.dir.clear();live.forEach(r=>this.w(r.op,r.k,r.v,r.ts));this.st.merge++;return n}
+ tear(){const s=this.segs.filter(x=>x.length).pop();if(!s)return false;s[s.length-1].crc^=1;return true}
+ crash(){this.dir.clear()}
+ recover(){this.dir.clear();let n=0,drop=0;
+  outer:for(let i=0;i<this.segs.length;i++)for(let j=0;j<this.segs[i].length;j++){const r=this.segs[i][j];
+   if(!ok(r)){drop=this.segs[i].length-j;this.segs[i].length=j;this.segs.length=i+1;break outer}
+   this.dir.set(r.k,{s:i,o:j});n++}
+  if(this.segs[this.segs.length-1].length>=this.cap)this.segs.push([]);
+  return`scanned ${n} records, rebuilt keydir with ${this.dir.size} keys, dropped ${drop} corrupt`}
+ stats(){return[["Keydir keys",this.dir.size],["Segments",this.segs.length],["Records",this.segs.reduce((a,s)=>a+s.length,0)],["Merges",this.st.merge]]}
+ view(){const rows=this.segs.map((s,i)=>`<div class="lane ${i===this.segs.length-1?"mem":"sst"}"><h3>segment-${String(i).padStart(3,"0")} ${i===this.segs.length-1?"(active, append only)":"(immutable)"}</h3><div class="chips">${
+  s.map((r,j)=>{const p=this.dir.get(r.k);const live=p&&p.s===i&&p.o===j;return`<span class="chip ${r.v===null?"del":""} ${live?"":"old"} ${ok(r)?"":"bad"}" title="${live?"live":"stale, reclaimed by merge"}">${esc(r.k)}</span>`}).join("")||"<small>empty</small>"}</div></div>`).join("");
+  return`<div class="lane wal"><h3>Keydir (in memory hash index)</h3><div class="chips">${[...this.dir].slice(0,24).map(([k,p])=>`<span class="chip">${esc(k)}→${p.s}:${p.o}</span>`).join("")||"<small>empty, run recovery to rebuild from segments</small>"}</div></div>${rows}`}
+}
+
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const $=s=>document.querySelector(s);
+let mode="lsm",nodes=[],ring=[],clock=0,sel=0,hi=[],logs=[];
+const mk=()=>mode==="lsm"?new LSM():new Bitcask();
+const wr=(e,k,v,ts)=>v===null?e.del(k,ts):e.put(k,v,ts);
+function log(c,m){logs.unshift(`<div class="${c}">${esc(m)}</div>`);logs.length=Math.min(logs.length,40);$("#log").innerHTML=logs.join("")}
+function build(){nodes=["n1","n2","n3","n4","n5"].map(n=>({n,up:true,e:mk()}));ring=[];
+ nodes.forEach((x,i)=>{for(let v=0;v<6;v++)ring.push({a:crc(x.n+"#"+v)/2**32*360,i})});ring.sort((a,b)=>a.a-b.a)}
+const reps=k=>{const h=crc(k)/2**32*360;let s=ring.findIndex(p=>p.a>=h);if(s<0)s=0;const o=[];
+ for(let j=0;j<ring.length&&o.length<3;j++){const i=ring[(s+j)%ring.length].i;if(!o.includes(i))o.push(i)}return o};
+function put(k,v,del){const r=reps(k),ts=++clock;hi=r;const up=r.filter(i=>nodes[i].up);
+ if(up.length<2){log("er",`${del?"DEL":"PUT"} ${k} rejected: only ${up.length} of 3 replicas up, quorum is 2`);return"Quorum not met."}
+ up.forEach(i=>wr(nodes[i].e,k,del?null:v,ts));
+ log("ok",`${del?"DEL":"PUT"} ${k} acknowledged by ${up.map(i=>nodes[i].n).join(", ")} at ts ${ts}`);return`${del?"Deleted":"Stored"} ${k} on ${up.length} replicas.`}
+function get(k){const r=reps(k);hi=r;const res=r.filter(i=>nodes[i].up).map(i=>({i,x:nodes[i].e.get(k)}));
+ if(res.length<2){log("er",`GET ${k} rejected: read quorum not met`);return"Quorum not met."}
+ const best=res.reduce((a,b)=>(b.x?.ts||0)>(a?.ts||0)?b.x:a,null);
+ if(!best||best.v===null){log("wr",`GET ${k} not found`);return"Key not found."}
+
+ res.forEach(o=>{if((o.x?.ts||0)<best.ts){wr(nodes[o.i].e,k,best.v,best.ts);log("wr",`read repair: ${nodes[o.i].n} updated for ${k}`)}});
+ log("ok",`GET ${k} served by ${res.map(o=>nodes[o.i].n).join(", ")}`);return`${k} = ${best.v}  (ts ${best.ts})`}
+
+function draw(){
+ const e=nodes[sel].e;$("#stackTitle").textContent=`${mode==="lsm"?"LSM tree":"Bitcask"} on node ${nodes[sel].n}${nodes[sel].up?"":" (down)"}`;
+ $("#stats").innerHTML=e.stats().map(([a,b])=>`<div class="stat"><small>${a}</small><b>${b}</b></div>`).join("");
+ $("#stack").innerHTML=e.view();
+ $("#flush").textContent=mode==="lsm"?"Flush memtable":"Roll segment";$("#comp").textContent=mode==="lsm"?"Compact L0 into L1":"Merge segments";
+ $("#nodes").innerHTML=nodes.map((x,i)=>`<button class="node ${x.up?"":"down"}" data-i="${i}" aria-current="${i===sel}"><span><span class="dot"></span>${x.n}</span><small>${x.up?"up":"down"}${hi.includes(i)?", replica":""}</small></button>`).join("");
+ const cs=["#0f766e","#2457c5","#a15c07","#b42318","#7a3fb0"];
+ let s='<circle cx="110" cy="110" r="84" fill="none" stroke="var(--line)" stroke-width="2"/>';
+ ring.forEach(p=>{const a=(p.a-90)*Math.PI/180;s+=`<circle cx="${110+84*Math.cos(a)}" cy="${110+84*Math.sin(a)}" r="${nodes[p.i].up?5:3}" fill="${nodes[p.i].up?cs[p.i]:"var(--mut)"}" stroke="${hi.includes(p.i)?"var(--ink)":"none"}" stroke-width="2"/>`});
+ s+=nodes.map((x,i)=>`<text x="110" y="${96+i*13}" text-anchor="middle" fill="${cs[i]}" style="fill:${cs[i]}">${x.n} ${x.up?"":"down"}</text>`).join("");
+ $("#ring").innerHTML=s}
+
+const val=()=>[$("#k").value.trim(),$("#v").value];
+$("#put").onclick=()=>{const[k,v]=val();if(!k)return;$("#res").textContent=put(k,v,false);draw()};
+$("#del").onclick=()=>{const[k]=val();if(!k)return;$("#res").textContent=put(k,null,true);draw()};
+$("#get").onclick=()=>{const[k]=val();if(!k)return;$("#res").textContent=get(k);draw()};
+$("#flush").onclick=()=>{nodes[sel].e.flush?.();if(mode==="bitcask"){const e=nodes[sel].e;e.segs.push([])}log("ok",`${nodes[sel].n}: ${mode==="lsm"?"memtable flushed to a new L0 SSTable":"active segment rolled"}`);draw()};
+$("#comp").onclick=()=>{const n=nodes[sel].e.compact();log("ok",`${nodes[sel].n}: ${mode==="lsm"?`compacted ${n} L0 tables into L1`:`merged ${n} closed segments, stale records reclaimed`}`);draw()};
+$("#tear").onclick=()=>{log(nodes[sel].e.tear()?"wr":"er",nodes[sel].e.tear?`${nodes[sel].n}: last log record checksum corrupted (simulated torn write)`:"");draw()};
+$("#crash").onclick=()=>{nodes[sel].up=false;nodes[sel].e.crash();log("er",`${nodes[sel].n} crashed: in-memory ${mode==="lsm"?"memtable":"keydir"} lost, disk files kept`);draw()};
+$("#rec").onclick=()=>{const m=nodes[sel].e.recover();nodes[sel].up=true;log("ok",`${nodes[sel].n} recovered: ${m}`);draw()};
+$("#nodes").onclick=e=>{const b=e.target.closest(".node");if(b){sel=+b.dataset.i;draw()}};
+$("#reset").onclick=()=>{build();seed();logs=[];log("ok","Cluster reset with 5 empty nodes");draw()};
+$("#bench").onclick=()=>{const e=mk(),N=30000;e.cap=mode==="lsm"?2048:4096;let t=performance.now();
+ for(let i=0;i<N;i++)e.put("key:"+(i*7919%10007),"value-"+i,i);const w=N/((performance.now()-t)/1000);
+ t=performance.now();for(let i=0;i<N;i++)e.get("key:"+(i*31%10007));const r=N/((performance.now()-t)/1000);
+ const f=n=>Math.round(n).toLocaleString();const m=`${mode==="lsm"?"LSM":"Bitcask"} benchmark: ${f(w)} writes/s, ${f(r)} reads/s (${N.toLocaleString()} ops each)`;
+ log("ok",m);$("#res").textContent=m};
+function setMode(m){mode=m;$("#mLSM").setAttribute("aria-pressed",m==="lsm");$("#mBC").setAttribute("aria-pressed",m==="bitcask");build();seed();logs=[];log("ok",`Switched to ${m==="lsm"?"LSM tree":"Bitcask"}, cluster rebuilt`);draw()}
+$("#mLSM").onclick=()=>setMode("lsm");$("#mBC").onclick=()=>setMode("bitcask");
+function seed(){["user:1|Grace","user:2|Linus","user:3|Margaret","cfg:region|eu-west","cfg:mode|prod","order:9|paid","order:10|shipped","user:1|Grace Hopper"].forEach(s=>{const[k,v]=s.split("|");put(k,v,false)});hi=[]}
+build();seed();draw();
+</script>
+</body>
+</html>
